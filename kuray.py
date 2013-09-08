@@ -23,6 +23,7 @@ class Gui(QtGui.QMainWindow):
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
         self.setWindowTitle("Kuray")
+        self._create_menu()
         self._create_main_frame()
 
     def _on_measure(self):
@@ -68,6 +69,40 @@ class Gui(QtGui.QMainWindow):
         self.axes1.set_xticklabels(ticklabel_frequencies)
         self.axes2.set_xticklabels(ticklabel_frequencies)
         self.canvas.draw()
+
+    def _create_menu(self):
+        self.menuFile = self.menuBar().addMenu('&File')
+        self.menuHelp = self.menuBar().addMenu('&Help')
+
+        # Exit button
+        self.actExit = QtGui.QAction(self)
+        self.actExit.setText('Exit')
+        self.actExit.setIcon(QtGui.QIcon.fromTheme('application-exit'))
+        self.menuFile.addAction(self.actExit)
+        self.actExit.triggered.connect(self.close)
+
+        # About window
+        self.actAbout = QtGui.QAction(self)
+        self.actAbout.setText('About')
+        self.actAbout.setIcon(QtGui.QIcon.fromTheme('help-about'))
+        self.menuHelp.addAction(self.actAbout)
+        self.actAbout.triggered.connect(self._create_about_window)
+
+    def _create_about_window(self):
+
+        about = ("Kuray is a cross-platform application for measuring audio"
+                "systems. With it, you can obtain amplitude and phase"
+                "responses from a loudspeaker. It is still in a very early"
+                "stage of development. You can follow its progress on github:"
+                "\n \t https://github.com/Psirus/kuray \n"
+                "Please report any issues and feature ideas you may have.")
+
+        reply = QtGui.QMessageBox.information(self,
+            "QMessageBox.information()", about)
+        if reply == QtGui.QMessageBox.Ok:
+            self.informationLabel.setText("OK")
+        else:
+            self.informationLabel.setText("Escape")
 
     def _create_main_frame(self):
         """ Create main frame within the main window. """

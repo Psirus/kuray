@@ -29,7 +29,8 @@ def smooth(input_data, nth_octave = 6):
     number_of_points = 4048
     points_per_octave = number_of_points / number_of_octaves
 
-    log_data = _distribute_over_log(input_data, f_min, f_max, number_of_points)
+    log_data = _distribute_over_log(input_data, f_min, f_max, 
+                                                 number_of_points)
 
     window_length = points_per_octave / nth_octave
 

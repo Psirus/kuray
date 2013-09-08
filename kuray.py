@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """ Main file of Kuray. Execute it to use the application. """
-import numpy as np
+import math
 import matplotlib as mpl
 mpl.rcParams['backend.qt4'] = 'PySide'
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+import numpy as np
 import pyaudio
 import PySide.QtGui as QtGui
 import PySide.QtCore as QtCore
-import sys
 import smoothing
+import sys
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -46,13 +47,17 @@ class Gui(QtGui.QMainWindow):
         fft_output = np.fft.fft(answer)
         transfer_function = fft_output / fft_input
 
+        f_min = 30
+        f_max = 20e3
+        number_of_points = 4048
+        frequency_ratio = math.log(f_max / f_min) / number_of_points
+        frequencies = [math.exp(i*frequency_ratio) * f_min
+                       for i in range(number_of_points)]
         amplitude_smooth = np.log10(smoothing.smooth(np.abs(transfer_function)))
         phase_smooth = smoothing.smooth(np.angle(transfer_function))
 
-        self.axes1.plot(np.linspace(30, 2e4, len(amplitude_smooth)),
-                            amplitude_smooth)
-        self.axes2.plot(np.linspace(30, 2e4, len(phase_smooth)),
-                            phase_smooth)
+        self.axes1.semilogx(frequencies, amplitude_smooth)
+        self.axes2.semilogx(frequencies, phase_smooth)
 
         tick_frequencies = [31, 62, 125, 250, 500, 1000,
                             2000, 4000, 8000, 16000]
@@ -84,8 +89,8 @@ class Gui(QtGui.QMainWindow):
 
         self.axes1 = self.fig.add_subplot(2, 1, 1)
         self.axes2 = self.fig.add_subplot(2, 1, 2)
-        self.line1, = self.axes1.plot([], [])
-        self.line2, = self.axes2.plot([], [])
+        self.line1, = self.axes1.semilogx([], [])
+        self.line2, = self.axes2.semilogx([], [])
         self.axes1.grid(True)
         self.axes2.grid(True)
         self.axes1.set_xlim(30, 2e4)

@@ -9,6 +9,7 @@ import pyaudio
 import PySide.QtGui as QtGui
 import PySide.QtCore as QtCore
 import sys
+import smoothing
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -32,7 +33,7 @@ class Gui(QtGui.QMainWindow):
                                  input=True, output=True, 
                                  frames_per_buffer = CHUNK)
 
-        length = 2**18
+        length = 2**17
         sweep = generate_sweep(length)
 
         stream.write(sweep)
@@ -45,12 +46,13 @@ class Gui(QtGui.QMainWindow):
         fft_output = np.fft.fft(answer)
         transfer_function = fft_output / fft_input
 
-        # No need to plot this much data, resolution is too low anyway
-        tf_chunked = transfer_function[0::10]
-        self.axes1.semilogx(np.linspace(30, 2e4, len(tf_chunked)),
-                            np.log10(np.abs(tf_chunked)))
-        self.axes2.semilogx(np.linspace(30, 2e4, len(tf_chunked)),
-                        np.angle(tf_chunked, deg=True))
+        amplitude_smooth = np.log10(smoothing.smooth(np.abs(transfer_function)))
+        phase_smooth = smoothing.smooth(np.angle(transfer_function))
+
+        self.axes1.plot(np.linspace(30, 2e4, len(amplitude_smooth)),
+                            amplitude_smooth)
+        self.axes2.plot(np.linspace(30, 2e4, len(phase_smooth)),
+                            phase_smooth)
 
         tick_frequencies = [31, 62, 125, 250, 500, 1000,
                             2000, 4000, 8000, 16000]
@@ -82,8 +84,8 @@ class Gui(QtGui.QMainWindow):
 
         self.axes1 = self.fig.add_subplot(2, 1, 1)
         self.axes2 = self.fig.add_subplot(2, 1, 2)
-        self.line1, = self.axes1.semilogx([], [])
-        self.line2, = self.axes2.semilogx([], [])
+        self.line1, = self.axes1.plot([], [])
+        self.line2, = self.axes2.plot([], [])
         self.axes1.grid(True)
         self.axes2.grid(True)
         self.axes1.set_xlim(30, 2e4)

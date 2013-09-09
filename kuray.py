@@ -26,10 +26,11 @@ class Gui(QtGui.QMainWindow):
         self.amplitude = []
         self.phase = []
         self.frequencies = []
-        self._create_menu()
-        self._create_main_frame()
+        self.length_in_seconds = 3
+        self.create_menu()
+        self.create_main_frame()
 
-    def _on_measure(self):
+    def on_measure(self):
         """ Start measurement. """
         # Initialize PortAudio
         port_audio = pyaudio.PyAudio()
@@ -38,7 +39,7 @@ class Gui(QtGui.QMainWindow):
                                  input=True, output=True, 
                                  frames_per_buffer = CHUNK)
 
-        length = 2**17
+        length = CHUNK * round(self.length_in_seconds * RATE // CHUNK)
         sweep = generate_sweep(length)
 
         stream.write(sweep)
@@ -76,7 +77,7 @@ class Gui(QtGui.QMainWindow):
         self.axes2.set_xticklabels(ticklabel_frequencies)
         self.canvas.draw()
 
-    def _create_menu(self):
+    def create_menu(self):
         """ Create main menu """
         menu_file = self.menuBar().addMenu('&File')
         menu_help = self.menuBar().addMenu('&Help')
@@ -93,9 +94,9 @@ class Gui(QtGui.QMainWindow):
         act_about.setText('About')
         act_about.setIcon(QtGui.QIcon.fromTheme('help-about'))
         menu_help.addAction(act_about)
-        act_about.triggered.connect(self._create_about_window)
+        act_about.triggered.connect(self.create_about_window)
 
-    def _create_about_window(self):
+    def create_about_window(self):
         """ Creates the about window for Kuray. """
 
         about = ("Kuray is a cross-platform application for measuring audio"
@@ -112,7 +113,7 @@ class Gui(QtGui.QMainWindow):
         else:
             self.informationLabel.setText("Escape")
 
-    def _change_smoothing(self, octave_str):
+    def change_smoothing(self, octave_str):
         """ Change smoothing of graphs. Triggered by `smoothing_combo`. """
         octave = int(octave_str)
 
@@ -124,17 +125,31 @@ class Gui(QtGui.QMainWindow):
         self.phase_line.set_ydata(phase_smooth)
         self.canvas.draw()
 
-    def _create_main_frame(self):
+    def change_signal_length(self, length):
+        self.length_in_seconds = length
+
+    def create_main_frame(self):
         """ Create main frame within the main window. """
         main_frame = QtGui.QWidget()
 
-        smooth_group = QtGui.QGroupBox()
-        smooth_group.setFlat(True)
+        signal_param_group = QtGui.QGroupBox("Excitation parameters")
+        signal_length_box = QtGui.QDoubleSpinBox(self)
+        signal_length_box.setSuffix(" s")
+        signal_length_box.setSingleStep(0.1)
+        signal_length_box.setValue(self.length_in_seconds)
+        signal_length_box.valueChanged.connect(self.change_signal_length)
+        signal_length_label = QtGui.QLabel(self)
+        signal_length_label.setText("Length in seconds")
+        signal_param_hbox = QtGui.QFormLayout()
+        signal_param_hbox.addRow(signal_length_label, signal_length_box)
+        signal_param_group.setLayout(signal_param_hbox)
+
+        smooth_group = QtGui.QGroupBox("Representation")
         smooth_combo = QtGui.QComboBox(self)
         smooth_combo.addItems(["3", "6", "10", "20"])
         # set 1/6 as default value
         smooth_combo.setCurrentIndex(1)
-        smooth_combo.activated[str].connect(self._change_smoothing)
+        smooth_combo.activated[str].connect(self.change_smoothing)
         smooth_label = QtGui.QLabel(self)
         smooth_label.setText("Amount of smoothing to be done, in 1/nth octave")
         smooth_hbox = QtGui.QFormLayout()
@@ -149,9 +164,10 @@ class Gui(QtGui.QMainWindow):
 
         measure_button = QtGui.QPushButton("&Measure")
         self.connect(measure_button, QtCore.SIGNAL('clicked()'),
-                     self._on_measure)
+                     self.on_measure)
 
         vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(signal_param_group)
         vbox.addWidget(smooth_group)
         vbox.addWidget(self.canvas, stretch=1)
         vbox.addWidget(measure_button)

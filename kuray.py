@@ -47,18 +47,21 @@ class Gui(QtGui.QMainWindow):
         fft_input = np.fft.fft(sweep)
         fft_output = np.fft.fft(answer)
         transfer_function = fft_output / fft_input
+        self.amplitude = np.abs(transfer_function)
+        print self.amplitude
+        self.phase = np.angle(transfer_function)
 
         f_min = 30
         f_max = 20e3
         number_of_points = 4048
         frequency_ratio = math.log(f_max / f_min) / number_of_points
-        frequencies = [math.exp(i*frequency_ratio) * f_min
+        self.frequencies = [math.exp(i*frequency_ratio) * f_min
                        for i in range(number_of_points)]
-        amplitude_smooth = np.log10(smoothing.smooth(np.abs(transfer_function)))
-        phase_smooth = smoothing.smooth(np.angle(transfer_function))
+        amplitude_smooth = np.log10(smoothing.smooth(self.amplitude))
+        phase_smooth = smoothing.smooth(self.phase)
 
-        self.axes1.semilogx(frequencies, amplitude_smooth)
-        self.axes2.semilogx(frequencies, phase_smooth)
+        self.amplitude_line, = self.axes1.semilogx(self.frequencies, amplitude_smooth)
+        self.phase_line, = self.axes2.semilogx(self.frequencies, phase_smooth)
 
         tick_frequencies = [31, 62, 125, 250, 500, 1000,
                             2000, 4000, 8000, 16000]
@@ -104,9 +107,34 @@ class Gui(QtGui.QMainWindow):
         else:
             self.informationLabel.setText("Escape")
 
+    def _change_smoothing(self, octave_str):
+        octave = int(octave_str)
+
+        amplitude_smooth = np.log10(smoothing.smooth(self.amplitude, octave))
+        phase_smooth = smoothing.smooth(self.phase, octave)
+        self.amplitude_line.set_xdata(self.frequencies)
+        self.amplitude_line.set_ydata(amplitude_smooth)
+        self.phase_line.set_xdata(self.frequencies)
+        self.phase_line.set_ydata(phase_smooth)
+        self.canvas.draw()
+
     def _create_main_frame(self):
         """ Create main frame within the main window. """
         self.main_frame = QtGui.QWidget()
+
+        smoothing_group = QtGui.QGroupBox()
+        smoothing_group.setFlat(True)
+        smoothing_combo = QtGui.QComboBox(self)
+        smoothing_combo.addItems(["3", "6", "10", "20"])
+        # set 1/6 as default value
+        smoothing_combo.setCurrentIndex(1)
+        smoothing_combo.activated[str].connect(self._change_smoothing)
+        smoothing_label = QtGui.QLabel(self)
+        smoothing_label.setText("Amount of smoothing to be done, in 1/nth octave")
+        smooth_hbox = QtGui.QFormLayout()
+        smooth_hbox.addRow(smoothing_label, smoothing_combo)
+        smoothing_group.setLayout(smooth_hbox)
+
         self.fig = mpl.figure.Figure((5.0, 4.0))
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self.main_frame)
@@ -116,7 +144,8 @@ class Gui(QtGui.QMainWindow):
                      self._on_measure)
 
         vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.canvas)
+        vbox.addWidget(smoothing_group)
+        vbox.addWidget(self.canvas, stretch=1)
         vbox.addWidget(self.measure_button)
 
         self.main_frame.setLayout(vbox)

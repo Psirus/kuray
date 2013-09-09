@@ -142,6 +142,8 @@ class Gui(QtGui.QMainWindow):
         smooth_group.setLayout(smooth_hbox)
 
         fig = mpl.figure.Figure((5.0, 4.0))
+        bg_color = main_frame.palette().color(QtGui.QPalette.Window).getRgbF()
+        fig.set_facecolor(bg_color)
         self.canvas = FigureCanvas(fig)
         self.canvas.setParent(main_frame)
 

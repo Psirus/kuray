@@ -23,6 +23,9 @@ class Gui(QtGui.QMainWindow):
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
         self.setWindowTitle("Kuray")
+        self.amplitude = []
+        self.phase = []
+        self.frequencies = []
         self._create_menu()
         self._create_main_frame()
 
@@ -48,7 +51,6 @@ class Gui(QtGui.QMainWindow):
         fft_output = np.fft.fft(answer)
         transfer_function = fft_output / fft_input
         self.amplitude = np.abs(transfer_function)
-        print self.amplitude
         self.phase = np.angle(transfer_function)
 
         f_min = 30
@@ -60,7 +62,8 @@ class Gui(QtGui.QMainWindow):
         amplitude_smooth = np.log10(smoothing.smooth(self.amplitude))
         phase_smooth = smoothing.smooth(self.phase)
 
-        self.amplitude_line, = self.axes1.semilogx(self.frequencies, amplitude_smooth)
+        self.amplitude_line, = self.axes1.semilogx(self.frequencies,
+                                                   amplitude_smooth)
         self.phase_line, = self.axes2.semilogx(self.frequencies, phase_smooth)
 
         tick_frequencies = [31, 62, 125, 250, 500, 1000,
@@ -74,24 +77,26 @@ class Gui(QtGui.QMainWindow):
         self.canvas.draw()
 
     def _create_menu(self):
-        self.menuFile = self.menuBar().addMenu('&File')
-        self.menuHelp = self.menuBar().addMenu('&Help')
+        """ Create main menu """
+        menu_file = self.menuBar().addMenu('&File')
+        menu_help = self.menuBar().addMenu('&Help')
 
         # Exit button
-        self.actExit = QtGui.QAction(self)
-        self.actExit.setText('Exit')
-        self.actExit.setIcon(QtGui.QIcon.fromTheme('application-exit'))
-        self.menuFile.addAction(self.actExit)
-        self.actExit.triggered.connect(self.close)
+        act_exit = QtGui.QAction(self)
+        act_exit.setText('Exit')
+        act_exit.setIcon(QtGui.QIcon.fromTheme('application-exit'))
+        menu_file.addAction(act_exit)
+        act_exit.triggered.connect(self.close)
 
         # About window
-        self.actAbout = QtGui.QAction(self)
-        self.actAbout.setText('About')
-        self.actAbout.setIcon(QtGui.QIcon.fromTheme('help-about'))
-        self.menuHelp.addAction(self.actAbout)
-        self.actAbout.triggered.connect(self._create_about_window)
+        act_about = QtGui.QAction(self)
+        act_about.setText('About')
+        act_about.setIcon(QtGui.QIcon.fromTheme('help-about'))
+        menu_help.addAction(act_about)
+        act_about.triggered.connect(self._create_about_window)
 
     def _create_about_window(self):
+        """ Creates the about window for Kuray. """
 
         about = ("Kuray is a cross-platform application for measuring audio"
                 "systems. With it, you can obtain amplitude and phase"
@@ -108,6 +113,7 @@ class Gui(QtGui.QMainWindow):
             self.informationLabel.setText("Escape")
 
     def _change_smoothing(self, octave_str):
+        """ Change smoothing of graphs. Triggered by `smoothing_combo`. """
         octave = int(octave_str)
 
         amplitude_smooth = np.log10(smoothing.smooth(self.amplitude, octave))
@@ -120,41 +126,41 @@ class Gui(QtGui.QMainWindow):
 
     def _create_main_frame(self):
         """ Create main frame within the main window. """
-        self.main_frame = QtGui.QWidget()
+        main_frame = QtGui.QWidget()
 
-        smoothing_group = QtGui.QGroupBox()
-        smoothing_group.setFlat(True)
-        smoothing_combo = QtGui.QComboBox(self)
-        smoothing_combo.addItems(["3", "6", "10", "20"])
+        smooth_group = QtGui.QGroupBox()
+        smooth_group.setFlat(True)
+        smooth_combo = QtGui.QComboBox(self)
+        smooth_combo.addItems(["3", "6", "10", "20"])
         # set 1/6 as default value
-        smoothing_combo.setCurrentIndex(1)
-        smoothing_combo.activated[str].connect(self._change_smoothing)
-        smoothing_label = QtGui.QLabel(self)
-        smoothing_label.setText("Amount of smoothing to be done, in 1/nth octave")
+        smooth_combo.setCurrentIndex(1)
+        smooth_combo.activated[str].connect(self._change_smoothing)
+        smooth_label = QtGui.QLabel(self)
+        smooth_label.setText("Amount of smoothing to be done, in 1/nth octave")
         smooth_hbox = QtGui.QFormLayout()
-        smooth_hbox.addRow(smoothing_label, smoothing_combo)
-        smoothing_group.setLayout(smooth_hbox)
+        smooth_hbox.addRow(smooth_label, smooth_combo)
+        smooth_group.setLayout(smooth_hbox)
 
-        self.fig = mpl.figure.Figure((5.0, 4.0))
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setParent(self.main_frame)
+        fig = mpl.figure.Figure((5.0, 4.0))
+        self.canvas = FigureCanvas(fig)
+        self.canvas.setParent(main_frame)
 
-        self.measure_button = QtGui.QPushButton("&Measure")
-        self.connect(self.measure_button, QtCore.SIGNAL('clicked()'),
+        measure_button = QtGui.QPushButton("&Measure")
+        self.connect(measure_button, QtCore.SIGNAL('clicked()'),
                      self._on_measure)
 
         vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(smoothing_group)
+        vbox.addWidget(smooth_group)
         vbox.addWidget(self.canvas, stretch=1)
-        vbox.addWidget(self.measure_button)
+        vbox.addWidget(measure_button)
 
-        self.main_frame.setLayout(vbox)
-        self.setCentralWidget(self.main_frame)
+        main_frame.setLayout(vbox)
+        self.setCentralWidget(main_frame)
 
-        self.axes1 = self.fig.add_subplot(2, 1, 1)
-        self.axes2 = self.fig.add_subplot(2, 1, 2)
-        self.line1, = self.axes1.semilogx([], [])
-        self.line2, = self.axes2.semilogx([], [])
+        self.axes1 = fig.add_subplot(2, 1, 1)
+        self.axes2 = fig.add_subplot(2, 1, 2)
+        self.axes1.semilogx([], [])
+        self.axes2.semilogx([], [])
         self.axes1.grid(True)
         self.axes2.grid(True)
         self.axes1.set_xlim(30, 2e4)

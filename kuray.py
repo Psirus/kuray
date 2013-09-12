@@ -26,6 +26,8 @@ class Gui(QtGui.QMainWindow):
         self.setWindowTitle("Kuray")
         self.amplitude = []
         self.phase = []
+        self.amplitude_repr = []
+        self.phase_repr = []
         self.frequencies = []
         self.length = 3
         self.signal = signals.Signal(30, 20e3, self.length)
@@ -53,7 +55,7 @@ class Gui(QtGui.QMainWindow):
         fft_output = np.fft.fft(answer)
         transfer_function = fft_output / fft_input
         self.amplitude = np.abs(transfer_function)
-        self.phase = np.angle(transfer_function)
+        self.phase = np.angle(transfer_function, deg=True)
 
         f_min = self.signal.f_min
         f_max = self.signal.f_max
@@ -61,22 +63,44 @@ class Gui(QtGui.QMainWindow):
         frequency_ratio = math.log(f_max / f_min) / number_of_points
         self.frequencies = [math.exp(i*frequency_ratio) * f_min
                        for i in range(number_of_points)]
-        amplitude_smooth = np.log10(smoothing.smooth(self.amplitude))
-        phase_smooth = smoothing.smooth(self.phase)
+        self.update_data_representation()
 
-        self.amplitude_line, = self.axes1.semilogx(self.frequencies,
-                                                   amplitude_smooth)
-        self.phase_line, = self.axes2.semilogx(self.frequencies, phase_smooth)
+        self.amplitude_line, = self.amplitude_axes.semilogx(self.frequencies,
+                                                   self.amplitude_repr)
+        self.phase_line, = self.phase_axes.semilogx(self.frequencies,
+                                               self.phase_repr)
 
+        self.set_plot_options()
+        self.canvas.draw()
+
+    def set_plot_options(self):
+        # x-ticks
         tick_frequencies = [31, 62, 125, 250, 500, 1000,
                             2000, 4000, 8000, 16000]
         ticklabel_frequencies = ['31', '62', '125', '250', '500', '1k',
                                  '2k', '4k', '8k', '16k']
-        self.axes1.set_xticks(tick_frequencies)
-        self.axes2.set_xticks(tick_frequencies)
-        self.axes1.set_xticklabels(ticklabel_frequencies)
-        self.axes2.set_xticklabels(ticklabel_frequencies)
-        self.canvas.draw()
+        self.amplitude_axes.set_xticks(tick_frequencies)
+        self.phase_axes.set_xticks(tick_frequencies)
+        self.amplitude_axes.set_xticklabels(ticklabel_frequencies)
+        self.phase_axes.set_xticklabels(ticklabel_frequencies)
+
+        # y-ticks
+        multiples_of_six = mpl.ticker.MultipleLocator(6)
+        multiples_of_thirty = mpl.ticker.MultipleLocator(30)
+
+        self.amplitude_axes.yaxis.set_major_locator(multiples_of_six)
+        self.amplitude_axes.set_ylim(auto=True)
+        self.phase_axes.yaxis.set_major_locator(multiples_of_thirty)
+        self.phase_axes.set_ylim(auto=True)
+
+        # Titles
+        self.amplitude_axes.set_title('Amplitude')
+        self.phase_axes.set_title('Phase')
+        
+        # xlabel and ylabel
+        self.amplitude_axes.set_xlabel('Frequency in Hz')
+        self.amplitude_axes.set_ylabel('dB')
+        self.phase_axes.set_xlabel('Frequency in Hz')
 
     def create_menu(self):
         """ Create main menu """
@@ -108,7 +132,7 @@ class Gui(QtGui.QMainWindow):
                 "Please report any issues and feature ideas you may have.")
 
         reply = QtGui.QMessageBox.information(self,
-            "QMessageBox.information()", about)
+            "About Kuray", about)
         if reply == QtGui.QMessageBox.Ok:
             self.informationLabel.setText("OK")
         else:
@@ -118,12 +142,11 @@ class Gui(QtGui.QMainWindow):
         """ Change smoothing of graphs. Triggered by `smoothing_combo`. """
         octave = int(octave_str)
 
-        amplitude_smooth = np.log10(smoothing.smooth(self.amplitude, octave))
-        phase_smooth = smoothing.smooth(self.phase, octave)
+        self.update_data_representation(octave)
         self.amplitude_line.set_xdata(self.frequencies)
-        self.amplitude_line.set_ydata(amplitude_smooth)
+        self.amplitude_line.set_ydata(self.amplitude_repr)
         self.phase_line.set_xdata(self.frequencies)
-        self.phase_line.set_ydata(phase_smooth)
+        self.phase_line.set_ydata(self.phase_repr)
         self.canvas.draw()
 
     def change_signal_length(self, length):
@@ -201,25 +224,24 @@ class Gui(QtGui.QMainWindow):
         main_frame.setLayout(vbox)
         self.setCentralWidget(main_frame)
 
-        self.axes1 = fig.add_subplot(2, 1, 1)
-        self.axes2 = fig.add_subplot(2, 1, 2)
-        self.axes1.semilogx([], [])
-        self.axes2.semilogx([], [])
-        self.axes1.grid(True)
-        self.axes2.grid(True)
-        self.axes1.set_xlim(30, 2e4)
-        self.axes2.set_xlim(30, 2e4)
-        tick_frequencies = [31, 62, 125, 250, 500, 1000, 
-                            2000, 4000, 8000, 16000]
-        ticklabel_frequencies = ['31', '62', '125', '250', '500', '1k',
-                                 '2k', '4k', '8k', '16k']
-        self.axes1.set_xticks(tick_frequencies)
-        self.axes2.set_xticks(tick_frequencies)
-        self.axes1.set_xticklabels(ticklabel_frequencies)
-        self.axes2.set_xticklabels(ticklabel_frequencies)
+        self.amplitude_axes = fig.add_subplot(2, 1, 1)
+        self.phase_axes = fig.add_subplot(2, 1, 2)
+        self.amplitude_axes.semilogx([], [])
+        self.phase_axes.semilogx([], [])
+        self.amplitude_axes.grid(True)
+        self.phase_axes.grid(True)
+        self.amplitude_axes.set_xlim(30, 2e4)
+        self.amplitude_axes.set_ylim(-18, 18)
+        self.phase_axes.set_xlim(30, 2e4)
+        self.phase_axes.set_ylim(-180,180)
 
+        self.set_plot_options()
         self.canvas.draw()
 
+    def update_data_representation(self, octave=6):
+        self.amplitude_repr = 20*np.log10(smoothing.smooth(self.amplitude, octave))
+        self.amplitude_repr = self.amplitude_repr - np.mean(self.amplitude_repr)
+        self.phase_repr = smoothing.smooth(self.phase, octave)
 
 def main():
     """ Main function; acts as entry point for Kuray. """

@@ -25,27 +25,10 @@ class Gui(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self)
         self.setWindowTitle("Kuray")
 
-        self.tab_bar = QtGui.QTabBar()
-        self.tab_bar.addTab('Frequency Respones')
-        self.tab_bar.addTab('Impulse Response')
-
-        self.tab_bar.currentChanged.connect(self.change_main_tab)
-
         self.freq_response_frame = FrequencyResponseFrame()
-        self.impulse_response_frame = QtGui.QWidget()
-
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.tab_bar)
-        vbox.addWidget(self.freq_response_frame)
-        vbox.addWidget(self.impulse_response_frame)
-        self.impulse_response_frame.hide()
-        self.tab_bar.hide()
 
         self.create_menu()
-
-        self.main_frame = QtGui.QWidget()
-        self.main_frame.setLayout(vbox)
-        self.setCentralWidget(self.main_frame)
+        self.setCentralWidget(self.freq_response_frame)
 
     def create_menu(self):
         """ Create main menu """
@@ -92,13 +75,6 @@ class Gui(QtGui.QMainWindow):
             self.freq_response_frame.hide()
             self.impulse_response_frame.show()
 
-    def update_data_representation(self, octave=6):
-        """ Update lines when changing representation options """
-        self.amplitude_repr = 20*np.log10(smoothing.smooth(self.amplitude, 
-                                                           octave))
-        self.amplitude_repr = self.amplitude_repr - np.mean(self.amplitude_repr)
-        self.phase_repr = smoothing.smooth(self.phase, octave)
-
 class FrequencyResponseFrame(QtGui.QWidget):
     """ Measure frequency responses """
     def __init__(self):
@@ -109,7 +85,7 @@ class FrequencyResponseFrame(QtGui.QWidget):
         self.phase_repr = []
         self.frequencies = []
         self.length = 3
-        self.signal = signals.Signal(30, 20e3, self.length)
+        self.signal = signals.Sweep(30, 20e3, self.length)
 
         signal_param_group = QtGui.QGroupBox("Excitation parameters")
         signal_length_box = QtGui.QDoubleSpinBox(self)
@@ -180,6 +156,13 @@ class FrequencyResponseFrame(QtGui.QWidget):
 
         self.set_plot_options()
         self.canvas.draw()
+
+    def update_data_representation(self, octave=6):
+        """ Update lines when changing representation options """
+        self.amplitude_repr = 20*np.log10(smoothing.smooth(self.amplitude, 
+                                                           octave))
+        self.amplitude_repr = self.amplitude_repr - np.mean(self.amplitude_repr)
+        self.phase_repr = smoothing.smooth(self.phase, octave)
 
     def change_smoothing(self, octave_str):
         """ Change smoothing of graphs. Triggered by `smoothing_combo`. """

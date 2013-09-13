@@ -4,7 +4,7 @@ import numpy as np
 RATE = 44100
 CHUNK = 1024
 
-class Signal(object):
+class Sweep(object):
     """ Model for excitation signal """
 
     def __init__(self, f_min=30.0, f_max=20e3, length=3):

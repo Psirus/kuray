@@ -66,15 +66,6 @@ class Gui(QtGui.QMainWindow):
         else:
             self.informationLabel.setText("Escape")
 
-    def change_main_tab(self, tab_index):
-        """ Switch between main tab views. """
-        if tab_index == 0:
-            self.freq_response_frame.show()
-            self.impulse_response_frame.hide()
-        elif tab_index == 1:
-            self.freq_response_frame.hide()
-            self.impulse_response_frame.show()
-
 class FrequencyResponseFrame(QtGui.QWidget):
     """ Measure frequency responses """
     def __init__(self):
@@ -84,6 +75,8 @@ class FrequencyResponseFrame(QtGui.QWidget):
         self.amplitude_repr = []
         self.phase_repr = []
         self.frequencies = []
+        self.smoothing_octave = 6
+        self.window_type = 'hamming'
         self.signal = signals.Sweep(30, 20e3, 3)
 
         signal_param_group = QtGui.QGroupBox("Excitation parameters")
@@ -115,15 +108,23 @@ class FrequencyResponseFrame(QtGui.QWidget):
         signal_param_group.setLayout(signal_param_hbox)
 
         smooth_group = QtGui.QGroupBox("Representation")
-        smooth_combo = QtGui.QComboBox(self)
-        smooth_combo.addItems(["3", "6", "10", "20"])
+        octave_combo = QtGui.QComboBox(self)
+        octave_combo.addItems(["3", "6", "10", "20"])
         # set 1/6 as default value
-        smooth_combo.setCurrentIndex(1)
-        smooth_combo.activated[str].connect(self.change_smoothing)
-        smooth_label = QtGui.QLabel(self)
-        smooth_label.setText("Amount of smoothing to be done, in 1/nth octave")
+        octave_combo.setCurrentIndex(1)
+        octave_combo.activated[str].connect(self.change_smoothing)
+        octave_label = QtGui.QLabel(self)
+        octave_label.setText("Amount of smoothing to be done, in 1/nth octave")
+
+        window_combo = QtGui.QComboBox(self)
+        window_combo.addItems(["Hamming Window", "Bartlett Window", 
+                               "Blackman Window", "Hanning Window"])
+        window_combo.activated[str].connect(self.change_window_type)
+        window_label = QtGui.QLabel(self)
+        window_label.setText("Window Type:")
         smooth_hbox = QtGui.QFormLayout()
-        smooth_hbox.addRow(smooth_label, smooth_combo)
+        smooth_hbox.addRow(octave_label, octave_combo)
+        smooth_hbox.addRow(window_label, window_combo)
         smooth_group.setLayout(smooth_hbox)
 
         fig = mpl.figure.Figure((5.0, 4.0))
@@ -156,18 +157,32 @@ class FrequencyResponseFrame(QtGui.QWidget):
         self.set_plot_options()
         self.canvas.draw()
 
-    def update_data_representation(self, octave=6):
+    def update_data_representation(self):
         """ Update lines when changing representation options """
-        self.amplitude_repr = 20*np.log10(smoothing.smooth(self.amplitude, 
-                                                           octave))
+        self.amplitude_repr = 20*np.log10(
+                              smoothing.smooth(self.amplitude,
+                              self.smoothing_octave, self.window_type))
         self.amplitude_repr = self.amplitude_repr - np.mean(self.amplitude_repr)
-        self.phase_repr = smoothing.smooth(self.phase, octave)
+        self.phase_repr = smoothing.smooth(self.phase, self.smoothing_octave, 
+                                           self.window_type)
 
+    def change_window_type(self, window):
+        """ Change window type of smoothing operation """
+        # First word in lower case
+        self.window_type = window.split()[0].lower()
+
+        self.update_data_representation()
+        self.amplitude_line.set_xdata(self.frequencies)
+        self.amplitude_line.set_ydata(self.amplitude_repr)
+        self.phase_line.set_xdata(self.frequencies)
+        self.phase_line.set_ydata(self.phase_repr)
+        self.canvas.draw()
+        
     def change_smoothing(self, octave_str):
         """ Change smoothing of graphs. Triggered by `smoothing_combo`. """
-        octave = int(octave_str)
+        self.smoothing_octave = int(octave_str)
 
-        self.update_data_representation(octave)
+        self.update_data_representation()
         self.amplitude_line.set_xdata(self.frequencies)
         self.amplitude_line.set_ydata(self.amplitude_repr)
         self.phase_line.set_xdata(self.frequencies)

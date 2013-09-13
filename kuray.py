@@ -25,10 +25,26 @@ class Gui(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self)
         self.setWindowTitle("Kuray")
 
+        self.tab_bar = QtGui.QTabBar()
+        self.tab_bar.addTab('Frequency Respones')
+        self.tab_bar.addTab('Impulse Response')
+
+        self.tab_bar.currentChanged.connect(self.change_main_tab)
+
         self.freq_response_frame = FrequencyResponseFrame()
+        self.impulse_response_frame = ImpulseResponesFrame()
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.tab_bar)
+        vbox.addWidget(self.freq_response_frame)
+        vbox.addWidget(self.impulse_response_frame)
+        self.impulse_response_frame.hide()
 
         self.create_menu()
-        self.setCentralWidget(self.freq_response_frame)
+
+        self.main_frame = QtGui.QWidget()
+        self.main_frame.setLayout(vbox)
+        self.setCentralWidget(self.main_frame)
 
     def create_menu(self):
         """ Create main menu """
@@ -255,6 +271,61 @@ class FrequencyResponseFrame(QtGui.QWidget):
         self.amplitude_axes.set_xlabel('Frequency in Hz')
         self.amplitude_axes.set_ylabel('dB')
         self.phase_axes.set_xlabel('Frequency in Hz')
+
+class ImpulseResponesFrame(QtGui.QWidget):
+    """ Measure and display the impulse response """
+    def __init__(self):
+        QtGui.QWidget.__init__(self)
+        self.amplitude = []
+        self.phase = []
+        self.amplitude_repr = []
+        self.phase_repr = []
+        self.frequencies = []
+        self.length = 3
+        self.signal = signals.Sweep()
+
+        fig = mpl.figure.Figure((5.0, 4.0))
+        bg_color = self.palette().color(QtGui.QPalette.Window).getRgbF()
+        fig.set_facecolor(bg_color)
+        self.canvas = FigureCanvas(fig)
+
+        measure_button = QtGui.QPushButton("&Measure")
+        self.connect(measure_button, QtCore.SIGNAL('clicked()'),
+                     self.on_measure)
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.canvas, stretch=1)
+        vbox.addWidget(measure_button)
+        self.setLayout(vbox)
+
+        self.waveform_axes = fig.add_subplot(111)
+        self.canvas.draw()
+
+    def on_measure(self):
+        """ Start measurement. """
+        # Initialize PortAudio
+        port_audio = pyaudio.PyAudio()
+
+        stream = port_audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
+                                 input=True, output=True, 
+                                 frames_per_buffer = CHUNK)
+
+        sweep = self.signal.generate_sweep()
+
+        stream.write(sweep)
+        answer = []
+        for _ in range(self.signal.get_length() // CHUNK):
+            data = stream.read(CHUNK)
+            answer = np.append(answer, np.fromstring(data, 'Int16'))
+
+        fft_input = np.fft.fft(sweep)
+        fft_output = np.fft.fft(answer)
+        transfer_function = fft_output / fft_input
+        
+        impulse_response = np.fft.ifft(transfer_function)
+        self.waveform_axes.plot(range(self.signal.get_length()),
+                                impulse_response)
+        self.canvas.draw()
 
 def main():
     """ Main function; acts as entry point for Kuray. """

@@ -24,83 +24,28 @@ class Gui(QtGui.QMainWindow):
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
         self.setWindowTitle("Kuray")
-        self.amplitude = []
-        self.phase = []
-        self.amplitude_repr = []
-        self.phase_repr = []
-        self.frequencies = []
-        self.length = 3
-        self.signal = signals.Signal(30, 20e3, self.length)
+
+        self.tab_bar = QtGui.QTabBar()
+        self.tab_bar.addTab('Frequency Respones')
+        self.tab_bar.addTab('Impulse Response')
+
+        self.tab_bar.currentChanged.connect(self.change_main_tab)
+
+        self.freq_response_frame = FrequencyResponseFrame()
+        self.impulse_response_frame = QtGui.QWidget()
+
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(self.tab_bar)
+        vbox.addWidget(self.freq_response_frame)
+        vbox.addWidget(self.impulse_response_frame)
+        self.impulse_response_frame.hide()
+        self.tab_bar.hide()
+
         self.create_menu()
-        self.create_main_frame()
 
-    def on_measure(self):
-        """ Start measurement. """
-        # Initialize PortAudio
-        port_audio = pyaudio.PyAudio()
-
-        stream = port_audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
-                                 input=True, output=True, 
-                                 frames_per_buffer = CHUNK)
-
-        sweep = self.signal.generate_sweep()
-
-        stream.write(sweep)
-        answer = []
-        for _ in range(self.signal.get_length() // CHUNK):
-            data = stream.read(CHUNK)
-            answer = np.append(answer, np.fromstring(data, 'Int16'))
-
-        fft_input = np.fft.fft(sweep)
-        fft_output = np.fft.fft(answer)
-        transfer_function = fft_output / fft_input
-        self.amplitude = np.abs(transfer_function)
-        self.phase = np.angle(transfer_function, deg=True)
-
-        f_min = self.signal.f_min
-        f_max = self.signal.f_max
-        number_of_points = 4048
-        frequency_ratio = math.log(f_max / f_min) / number_of_points
-        self.frequencies = [math.exp(i*frequency_ratio) * f_min
-                       for i in range(number_of_points)]
-        self.update_data_representation()
-
-        self.amplitude_line, = self.amplitude_axes.semilogx(self.frequencies,
-                                                   self.amplitude_repr)
-        self.phase_line, = self.phase_axes.semilogx(self.frequencies,
-                                               self.phase_repr)
-
-        self.set_plot_options()
-        self.canvas.draw()
-
-    def set_plot_options(self):
-        # x-ticks
-        tick_frequencies = [31, 62, 125, 250, 500, 1000,
-                            2000, 4000, 8000, 16000]
-        ticklabel_frequencies = ['31', '62', '125', '250', '500', '1k',
-                                 '2k', '4k', '8k', '16k']
-        self.amplitude_axes.set_xticks(tick_frequencies)
-        self.phase_axes.set_xticks(tick_frequencies)
-        self.amplitude_axes.set_xticklabels(ticklabel_frequencies)
-        self.phase_axes.set_xticklabels(ticklabel_frequencies)
-
-        # y-ticks
-        multiples_of_six = mpl.ticker.MultipleLocator(6)
-        multiples_of_thirty = mpl.ticker.MultipleLocator(30)
-
-        self.amplitude_axes.yaxis.set_major_locator(multiples_of_six)
-        self.amplitude_axes.set_ylim(auto=True)
-        self.phase_axes.yaxis.set_major_locator(multiples_of_thirty)
-        self.phase_axes.set_ylim(auto=True)
-
-        # Titles
-        self.amplitude_axes.set_title('Amplitude')
-        self.phase_axes.set_title('Phase')
-        
-        # xlabel and ylabel
-        self.amplitude_axes.set_xlabel('Frequency in Hz')
-        self.amplitude_axes.set_ylabel('dB')
-        self.phase_axes.set_xlabel('Frequency in Hz')
+        self.main_frame = QtGui.QWidget()
+        self.main_frame.setLayout(vbox)
+        self.setCentralWidget(self.main_frame)
 
     def create_menu(self):
         """ Create main menu """
@@ -138,32 +83,33 @@ class Gui(QtGui.QMainWindow):
         else:
             self.informationLabel.setText("Escape")
 
-    def change_smoothing(self, octave_str):
-        """ Change smoothing of graphs. Triggered by `smoothing_combo`. """
-        octave = int(octave_str)
+    def change_main_tab(self, tab_index):
+        """ Switch between main tab views. """
+        if tab_index == 0:
+            self.freq_response_frame.show()
+            self.impulse_response_frame.hide()
+        elif tab_index == 1:
+            self.freq_response_frame.hide()
+            self.impulse_response_frame.show()
 
-        self.update_data_representation(octave)
-        self.amplitude_line.set_xdata(self.frequencies)
-        self.amplitude_line.set_ydata(self.amplitude_repr)
-        self.phase_line.set_xdata(self.frequencies)
-        self.phase_line.set_ydata(self.phase_repr)
-        self.canvas.draw()
+    def update_data_representation(self, octave=6):
+        """ Update lines when changing representation options """
+        self.amplitude_repr = 20*np.log10(smoothing.smooth(self.amplitude, 
+                                                           octave))
+        self.amplitude_repr = self.amplitude_repr - np.mean(self.amplitude_repr)
+        self.phase_repr = smoothing.smooth(self.phase, octave)
 
-    def change_signal_length(self, length):
-        """ Change length of excitation signal """
-        self.length = length
-
-    def change_signal_f_min(self, f_min):
-        """ Change minimum frequency of excitation signal """
-        self.signal.f_min = f_min
-
-    def change_signal_f_max(self, f_max):
-        """ Change maximum frequency of excitation signal """
-        self.signal.f_max = f_max
-
-    def create_main_frame(self):
-        """ Create main frame within the main window. """
-        main_frame = QtGui.QWidget()
+class FrequencyResponseFrame(QtGui.QWidget):
+    """ Measure frequency responses """
+    def __init__(self):
+        QtGui.QWidget.__init__(self)
+        self.amplitude = []
+        self.phase = []
+        self.amplitude_repr = []
+        self.phase_repr = []
+        self.frequencies = []
+        self.length = 3
+        self.signal = signals.Signal(30, 20e3, self.length)
 
         signal_param_group = QtGui.QGroupBox("Excitation parameters")
         signal_length_box = QtGui.QDoubleSpinBox(self)
@@ -206,10 +152,9 @@ class Gui(QtGui.QMainWindow):
         smooth_group.setLayout(smooth_hbox)
 
         fig = mpl.figure.Figure((5.0, 4.0))
-        bg_color = main_frame.palette().color(QtGui.QPalette.Window).getRgbF()
+        bg_color = self.palette().color(QtGui.QPalette.Window).getRgbF()
         fig.set_facecolor(bg_color)
         self.canvas = FigureCanvas(fig)
-        self.canvas.setParent(main_frame)
 
         measure_button = QtGui.QPushButton("&Measure")
         self.connect(measure_button, QtCore.SIGNAL('clicked()'),
@@ -220,9 +165,7 @@ class Gui(QtGui.QMainWindow):
         vbox.addWidget(smooth_group)
         vbox.addWidget(self.canvas, stretch=1)
         vbox.addWidget(measure_button)
-
-        main_frame.setLayout(vbox)
-        self.setCentralWidget(main_frame)
+        self.setLayout(vbox)
 
         self.amplitude_axes = fig.add_subplot(2, 1, 1)
         self.phase_axes = fig.add_subplot(2, 1, 2)
@@ -233,15 +176,102 @@ class Gui(QtGui.QMainWindow):
         self.amplitude_axes.set_xlim(30, 2e4)
         self.amplitude_axes.set_ylim(-18, 18)
         self.phase_axes.set_xlim(30, 2e4)
-        self.phase_axes.set_ylim(-180,180)
+        self.phase_axes.set_ylim(-180, 180)
 
         self.set_plot_options()
         self.canvas.draw()
 
-    def update_data_representation(self, octave=6):
-        self.amplitude_repr = 20*np.log10(smoothing.smooth(self.amplitude, octave))
-        self.amplitude_repr = self.amplitude_repr - np.mean(self.amplitude_repr)
-        self.phase_repr = smoothing.smooth(self.phase, octave)
+    def change_smoothing(self, octave_str):
+        """ Change smoothing of graphs. Triggered by `smoothing_combo`. """
+        octave = int(octave_str)
+
+        self.update_data_representation(octave)
+        self.amplitude_line.set_xdata(self.frequencies)
+        self.amplitude_line.set_ydata(self.amplitude_repr)
+        self.phase_line.set_xdata(self.frequencies)
+        self.phase_line.set_ydata(self.phase_repr)
+        self.canvas.draw()
+
+    def change_signal_length(self, length):
+        """ Change length of excitation signal """
+        self.length = length
+
+    def change_signal_f_min(self, f_min):
+        """ Change minimum frequency of excitation signal """
+        self.signal.f_min = f_min
+
+    def change_signal_f_max(self, f_max):
+        """ Change maximum frequency of excitation signal """
+        self.signal.f_max = f_max
+
+    def on_measure(self):
+        """ Start measurement. """
+        # Initialize PortAudio
+        port_audio = pyaudio.PyAudio()
+
+        stream = port_audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
+                                 input=True, output=True, 
+                                 frames_per_buffer = CHUNK)
+
+        sweep = self.signal.generate_sweep()
+
+        stream.write(sweep)
+        answer = []
+        for _ in range(self.signal.get_length() // CHUNK):
+            data = stream.read(CHUNK)
+            answer = np.append(answer, np.fromstring(data, 'Int16'))
+
+        fft_input = np.fft.fft(sweep)
+        fft_output = np.fft.fft(answer)
+        transfer_function = fft_output / fft_input
+        self.amplitude = np.abs(transfer_function)
+        self.phase = np.angle(transfer_function, deg=True)
+
+        f_min = self.signal.f_min
+        f_max = self.signal.f_max
+        number_of_points = 4048
+        frequency_ratio = math.log(f_max / f_min) / number_of_points
+        self.frequencies = [math.exp(i*frequency_ratio) * f_min
+                       for i in range(number_of_points)]
+        self.update_data_representation()
+
+        self.amplitude_line, = self.amplitude_axes.semilogx(self.frequencies,
+                                                   self.amplitude_repr)
+        self.phase_line, = self.phase_axes.semilogx(self.frequencies,
+                                               self.phase_repr)
+
+        self.set_plot_options()
+        self.canvas.draw()
+
+    def set_plot_options(self):
+        """ Set ticks, ticklabels, labels & titles of plots """
+        # x-ticks
+        tick_frequencies = [31, 62, 125, 250, 500, 1000,
+                            2000, 4000, 8000, 16000]
+        ticklabel_frequencies = ['31', '62', '125', '250', '500', '1k',
+                                 '2k', '4k', '8k', '16k']
+        self.amplitude_axes.set_xticks(tick_frequencies)
+        self.phase_axes.set_xticks(tick_frequencies)
+        self.amplitude_axes.set_xticklabels(ticklabel_frequencies)
+        self.phase_axes.set_xticklabels(ticklabel_frequencies)
+
+        # y-ticks
+        multiples_of_six = mpl.ticker.MultipleLocator(6)
+        multiples_of_thirty = mpl.ticker.MultipleLocator(30)
+
+        self.amplitude_axes.yaxis.set_major_locator(multiples_of_six)
+        self.amplitude_axes.set_ylim(auto=True)
+        self.phase_axes.yaxis.set_major_locator(multiples_of_thirty)
+        self.phase_axes.set_ylim(auto=True)
+
+        # Titles
+        self.amplitude_axes.set_title('Amplitude')
+        self.phase_axes.set_title('Phase')
+        
+        # xlabel and ylabel
+        self.amplitude_axes.set_xlabel('Frequency in Hz')
+        self.amplitude_axes.set_ylabel('dB')
+        self.phase_axes.set_xlabel('Frequency in Hz')
 
 def main():
     """ Main function; acts as entry point for Kuray. """

@@ -32,19 +32,19 @@ class Gui(QtGui.QMainWindow):
 
     def create_menu(self):
         """ Create main menu """
-        menu_file = self.menuBar().addMenu('&File')
-        menu_help = self.menuBar().addMenu('&Help')
+        menu_file = self.menuBar().addMenu("&File")
+        menu_help = self.menuBar().addMenu("&Help")
 
         # Exit button
         act_exit = QtGui.QAction(self)
-        act_exit.setText('Exit')
+        act_exit.setText("Exit")
         act_exit.setIcon(QtGui.QIcon.fromTheme('application-exit'))
         menu_file.addAction(act_exit)
         act_exit.triggered.connect(self.close)
 
         # About window
         act_about = QtGui.QAction(self)
-        act_about.setText('About')
+        act_about.setText("About")
         act_about.setIcon(QtGui.QIcon.fromTheme('help-about'))
         menu_help.addAction(act_about)
         act_about.triggered.connect(self.create_about_window)
@@ -86,7 +86,7 @@ class FrequencyResponseFrame(QtGui.QWidget):
         signal_length_box.setValue(self.signal.length)
         signal_length_box.valueChanged.connect(self.change_signal_length)
         signal_length_label = QtGui.QLabel(self)
-        signal_length_label.setText("Length in seconds")
+        signal_length_label.setText("Signal length")
         signal_f_min_box = QtGui.QDoubleSpinBox(self)
         signal_f_min_box.setSuffix(" Hz")
         signal_f_min_box.setValue(self.signal.f_min)
@@ -245,8 +245,8 @@ class FrequencyResponseFrame(QtGui.QWidget):
         # x-ticks
         tick_frequencies = [31, 62, 125, 250, 500, 1000,
                             2000, 4000, 8000, 16000]
-        ticklabel_frequencies = ['31', '62', '125', '250', '500', '1k',
-                                 '2k', '4k', '8k', '16k']
+        ticklabel_frequencies = ["31", "62", "125", "250", "500", "1k",
+                                 "2k", "4k", "8k", "16k"]
         self.amplitude_axes.set_xticks(tick_frequencies)
         self.phase_axes.set_xticks(tick_frequencies)
         self.amplitude_axes.set_xticklabels(ticklabel_frequencies)
@@ -262,13 +262,12 @@ class FrequencyResponseFrame(QtGui.QWidget):
         self.phase_axes.set_ylim(auto=True)
 
         # Titles
-        self.amplitude_axes.set_title('Amplitude')
-        self.phase_axes.set_title('Phase')
+        self.amplitude_axes.set_title("Frequency Response")
         
         # xlabel and ylabel
-        self.amplitude_axes.set_xlabel('Frequency in Hz')
-        self.amplitude_axes.set_ylabel('dB')
-        self.phase_axes.set_xlabel('Frequency in Hz')
+        self.phase_axes.set_xlabel("Frequency [Hz]")
+        self.amplitude_axes.set_ylabel("Amplitude [dB]")
+        self.phase_axes.set_ylabel(u"Phase in °")
 
 def main():
     """ Main function; acts as entry point for Kuray. """

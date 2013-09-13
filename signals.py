@@ -10,7 +10,8 @@ class Sweep(object):
     def __init__(self, f_min=30.0, f_max=20e3, length=3):
         self._f_min = f_min
         self._f_max = f_max
-        self.length = CHUNK * int(round(length * RATE // CHUNK))
+        self._length_in_samples = CHUNK * int(round(length * RATE // CHUNK))
+        self._length = self.length_in_samples // RATE
         
     @property
     def f_min(self):
@@ -32,9 +33,27 @@ class Sweep(object):
         """ Set maximum frequency """
         self._f_max = f_max
 
-    def get_length(self):
-        """ Return length of signal in samples """
-        return self.length
+    @property
+    def length(self):
+        """ Signal length in seconds """
+        return self._length
+
+    @length.setter
+    def length(self, length):
+        """ Set signal length (seconds) """
+        self._length_in_samples = CHUNK * int(round(length * RATE // CHUNK))
+        self._length = self._length_in_samples // RATE
+
+    @property
+    def length_in_samples(self):
+        """ Signal length in number of samples """
+        return self._length_in_samples
+
+    @length_in_samples.setter
+    def length_in_samples(self, length_in_samples):
+        """ Set signal length (samples) """
+        self._length_in_samples = CHUNK * int(round(length_in_samples // CHUNK))
+        self._length = self._length_in_samples // RATE
 
     def generate_sweep(self):
         """ Generate sweep with `length` number of samples. """
@@ -42,11 +61,12 @@ class Sweep(object):
         phi = 0.0
         d_phi = 2*np.pi*self.f_min/RATE
 
-        sweep = np.zeros(self.length)
-        for i in range(self.length):
+        sweep = np.zeros(self.length_in_samples)
+        for i in range(self.length_in_samples):
             sweep[i] = amp*np.sin(phi)
             phi += d_phi
-            d_phi *= 2**(np.log2(self.f_max - self.f_min) / self.length)
+            d_phi *= 2**(np.log2(self.f_max - self.f_min) 
+                    / self.length_in_samples)
 
         sweep = np.int16(sweep)
         return sweep

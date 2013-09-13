@@ -84,14 +84,13 @@ class FrequencyResponseFrame(QtGui.QWidget):
         self.amplitude_repr = []
         self.phase_repr = []
         self.frequencies = []
-        self.length = 3
-        self.signal = signals.Sweep(30, 20e3, self.length)
+        self.signal = signals.Sweep(30, 20e3, 3)
 
         signal_param_group = QtGui.QGroupBox("Excitation parameters")
         signal_length_box = QtGui.QDoubleSpinBox(self)
         signal_length_box.setSuffix(" s")
         signal_length_box.setSingleStep(0.1)
-        signal_length_box.setValue(self.length)
+        signal_length_box.setValue(self.signal.length)
         signal_length_box.valueChanged.connect(self.change_signal_length)
         signal_length_label = QtGui.QLabel(self)
         signal_length_label.setText("Length in seconds")
@@ -177,7 +176,7 @@ class FrequencyResponseFrame(QtGui.QWidget):
 
     def change_signal_length(self, length):
         """ Change length of excitation signal """
-        self.length = length
+        self.signal.length = length
 
     def change_signal_f_min(self, f_min):
         """ Change minimum frequency of excitation signal """
@@ -200,7 +199,7 @@ class FrequencyResponseFrame(QtGui.QWidget):
 
         stream.write(sweep)
         answer = []
-        for _ in range(self.signal.get_length() // CHUNK):
+        for _ in range(self.signal.length_in_samples // CHUNK):
             data = stream.read(CHUNK)
             answer = np.append(answer, np.fromstring(data, 'Int16'))
 

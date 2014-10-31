@@ -52,19 +52,19 @@ class Gui(QtGui.QMainWindow):
     def create_about_window(self):
         """ Creates the about window for Kuray. """
 
-        about = ("Kuray is a cross-platform application for measuring audio"
-                "systems. With it, you can obtain amplitude and phase"
-                "responses from a loudspeaker. It is still in a very early"
-                "stage of development. You can follow its progress on github:"
-                "\n \t https://github.com/Psirus/kuray \n"
-                "Please report any issues and feature ideas you may have.")
+        about = ("Kuray is a cross-platform application for measuring audio "
+                 "systems. With it, you can obtain amplitude and phase "
+                 "responses from a loudspeaker. It is still in a very early "
+                 "stage of development. You can follow its progress on github:"
+                 "<br><a href='http://github.com/Psirus/kuray'>Kuray on GitHub"
+                 "</a><br>Please report any issues and feature ideas you may "
+                 "have.")
 
-        reply = QtGui.QMessageBox.information(self,
-            "About Kuray", about)
-        if reply == QtGui.QMessageBox.Ok:
-            self.informationLabel.setText("OK")
-        else:
-            self.informationLabel.setText("Escape")
+        reply = QtGui.QMessageBox(self)
+        reply.setWindowTitle("About Kuray")
+        reply.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        reply.setText(about)
+        reply.exec_()
 
 class FrequencyResponseFrame(QtGui.QWidget):
     """ Measure frequency responses """
@@ -117,7 +117,7 @@ class FrequencyResponseFrame(QtGui.QWidget):
         octave_label.setText("Amount of smoothing to be done, in 1/nth octave")
 
         window_combo = QtGui.QComboBox(self)
-        window_combo.addItems(["Hamming Window", "Bartlett Window", 
+        window_combo.addItems(["Hamming Window", "Bartlett Window",
                                "Blackman Window", "Hanning Window"])
         window_combo.activated[str].connect(self.change_window_type)
         window_label = QtGui.QLabel(self)
@@ -159,11 +159,12 @@ class FrequencyResponseFrame(QtGui.QWidget):
 
     def update_data_representation(self):
         """ Update lines when changing representation options """
-        self.amplitude_repr = 20*np.log10(
-                              smoothing.smooth(self.amplitude,
-                              self.smoothing_octave, self.window_type))
+        smooth_amplitude = smoothing.smooth(self.amplitude,
+                                            self.smoothing_octave,
+                                            self.window_type)
+        self.amplitude_repr = 20*np.log10(smooth_amplitude)
         self.amplitude_repr = self.amplitude_repr - np.mean(self.amplitude_repr)
-        self.phase_repr = smoothing.smooth(self.phase, self.smoothing_octave, 
+        self.phase_repr = smoothing.smooth(self.phase, self.smoothing_octave,
                                            self.window_type)
 
     def change_window_type(self, window):
@@ -177,7 +178,7 @@ class FrequencyResponseFrame(QtGui.QWidget):
         self.phase_line.set_xdata(self.frequencies)
         self.phase_line.set_ydata(self.phase_repr)
         self.canvas.draw()
-        
+
     def change_smoothing(self, octave_str):
         """ Change smoothing of graphs. Triggered by `smoothing_combo`. """
         self.smoothing_octave = int(octave_str)
@@ -206,9 +207,9 @@ class FrequencyResponseFrame(QtGui.QWidget):
         # Initialize PortAudio
         port_audio = pyaudio.PyAudio()
 
-        stream = port_audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, 
-                                 input=True, output=True, 
-                                 frames_per_buffer = CHUNK)
+        stream = port_audio.open(format=FORMAT, channels=CHANNELS, rate=RATE,
+                                 input=True, output=True,
+                                 frames_per_buffer=CHUNK)
 
         sweep = self.signal.generate_sweep()
 
@@ -229,14 +230,13 @@ class FrequencyResponseFrame(QtGui.QWidget):
         number_of_points = 4048
         frequency_ratio = math.log(f_max / f_min) / number_of_points
         self.frequencies = [math.exp(i*frequency_ratio) * f_min
-                       for i in range(number_of_points)]
+                            for i in range(number_of_points)]
         self.update_data_representation()
 
         self.amplitude_line, = self.amplitude_axes.semilogx(self.frequencies,
-                                                   self.amplitude_repr)
+                                                            self.amplitude_repr)
         self.phase_line, = self.phase_axes.semilogx(self.frequencies,
-                                               self.phase_repr)
-
+                                                    self.phase_repr)
         self.set_plot_options()
         self.canvas.draw()
 
@@ -263,7 +263,7 @@ class FrequencyResponseFrame(QtGui.QWidget):
 
         # Titles
         self.amplitude_axes.set_title("Frequency Response")
-        
+
         # xlabel and ylabel
         self.phase_axes.set_xlabel("Frequency [Hz]")
         self.amplitude_axes.set_ylabel("Amplitude [dB]")
